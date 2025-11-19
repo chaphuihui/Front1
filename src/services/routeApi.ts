@@ -31,7 +31,7 @@ export async function searchRoutes(
     const now = new Date();
     const departure_time = now.getHours() * 60 + now.getMinutes();
 
-    const response = await fetch(`${BASE_URL}/v1/navigation/calculate`, {
+    const response = await fetch(`${BASE_URL}/api/v1/navigation/calculate`, {
       // routes => navigation/calculate
       method: "POST",
       headers: {
