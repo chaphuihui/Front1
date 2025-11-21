@@ -34,28 +34,23 @@ export function PhysicalDisabilityRouteSearchPage({ onRouteSelect, addToFavorite
     setSearched(false);
     try {
       const results = await searchRoutes(departure, destination, "PHY");
-      console.log('API Response:', results); // Log the raw response
-      const formattedRoutes = results.routes.map((result: any) => {
-        const score = Math.floor(result.score * 100);
-        const totalMinutes = result.arrival_time;
-        const h24 = Math.floor(totalMinutes / 60);
-        const minutes = totalMinutes % 60;
-        const ampm = h24 >= 12 ? '오후' : '오전';
-        const h12 = h24 % 12;
-        const displayHours = h12 === 0 ? 12 : h12;
-        const arrivalTimeString = `${ampm} ${displayHours}시 ${minutes}분 도착`;
-
-        const distanceString = `${(result.walking_distance / 1000).toFixed(2)}km`; // Convert meters to km
-        const descriptionString = `안전 점수 ${score} | ${result.lines.join(' → ')} | 환승 ${result.transfers}회`;
+      console.log('API Response:', results);
+      const formattedRoutes: Route[] = results.routes.map((result: any, index: number) => {
+        const score = Math.floor((result.score || 0) * 100);
+        const totalMinutes = Math.round(result.total_time || 0);
 
         return {
-          id: result.rank.toString(),
+          id: (result.rank || index).toString(),
           departure,
           destination,
-          duration: arrivalTimeString,
-          distance: distanceString,
-          description: descriptionString,
-          path: result.route, // This is the array of station names
+          duration: `약 ${totalMinutes}분`,
+          description: `환승 ${result.transfers || 0}회`,
+          path: result.route_sequence || [],
+          lines: result.route_lines || [],
+          difficulty: score,
+          avgConvenience: result.avg_convenience,
+          avgCongestion: result.avg_congestion,
+          maxTransferDifficulty: result.max_transfer_difficulty,
         };
       });
       setRoutes(formattedRoutes);
@@ -150,18 +145,20 @@ export function PhysicalDisabilityRouteSearchPage({ onRouteSelect, addToFavorite
                 key={route.id}
                 className="p-4 cursor-pointer hover:shadow-lg transition-shadow bg-card"
                 onClick={() => handleSelectRoute(route)}
-                onMouseEnter={() => speak(`${route.duration}, ${route.distance}, ${route.description}`)}
+                onMouseEnter={() => speak(`약 ${route.duration}, 난이도 ${route.difficulty}`)}
               >
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-purple-600">{route.duration}</span>
-                      <span className="text-muted-foreground">|</span>
-                      <span className="text-muted-foreground">{route.distance}</span>
+                <div className="flex justify-between items-start">
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-lg text-purple-600">{route.duration}</span>
+                      <span className="text-sm text-muted-foreground">{route.description}</span>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {route.description}
-                    </p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                      <div className="text-muted-foreground">난이도: <span className="font-medium text-foreground">{route.difficulty}</span></div>
+                      <div className="text-muted-foreground">평균 편의성: <span className="font-medium text-foreground">{route.avgConvenience}</span></div>
+                      <div className="text-muted-foreground">평균 혼잡도: <span className="font-medium text-foreground">{route.avgCongestion}</span></div>
+                      <div className="text-muted-foreground">최대 환승 난이도: <span className="font-medium text-foreground">{route.maxTransferDifficulty}</span></div>
+                    </div>
                   </div>
                   <Button
                     size="sm"

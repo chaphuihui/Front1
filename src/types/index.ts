@@ -3,10 +3,14 @@ export interface Route {
   departure: string;
   destination: string;
   duration: string;
-  distance: string;
   description: string;
   directionsResult?: google.maps.DirectionsResult;
   path?: string[];
+  lines?: string[];
+  difficulty?: number;
+  avgConvenience?: number;
+  avgCongestion?: number;
+  maxTransferDifficulty?: number;
 }
 
 export interface Favorite extends Route {
