@@ -15,9 +15,9 @@ interface ElderlyRouteSearchPageProps {
 }
 
 /**
- * 고령자를 위한 경로검색 페이지
+ * 노약자를 위한 경로 검색 페이지 컴포넌트입니다.
  *
- * 편안하고 안전한 이동을 고려한 맞춤형 경로를 제공합니다.
+ * 음성 안내 및 확대 기능을 활용하여 사용자가 편안하게 경로를 검색하고 선택할 수 있도록 돕습니다.
  */
 export function ElderlyRouteSearchPage({ onRouteSelect, addToFavorites = false }: ElderlyRouteSearchPageProps) {
   const navigate = useNavigate();
@@ -33,29 +33,24 @@ export function ElderlyRouteSearchPage({ onRouteSelect, addToFavorites = false }
     setLoading(true);
     setSearched(false);
     try {
-      const results = await searchRoutes(departure, destination, "ELD");
+      const results = await searchRoutes(departure, destination, "ELDERLY");
       console.log('API Response:', results);
-      const formattedRoutes = results.routes.map((result: any) => {
-        const score = Math.floor(result.score * 100);
-        const totalMinutes = result.arrival_time;
-        const h24 = Math.floor(totalMinutes / 60);
-        const minutes = totalMinutes % 60;
-        const ampm = h24 >= 12 ? '오후' : '오전';
-        const h12 = h24 % 12;
-        const displayHours = h12 === 0 ? 12 : h12;
-        const arrivalTimeString = `${ampm} ${displayHours}시 ${minutes}분 도착`;
-
-        const distanceString = `${(result.walking_distance / 1000).toFixed(2)}km`;
-        const descriptionString = `점수: ${score}점 | ${result.lines.join(' → ')} | 환승 ${result.transfers}회`;
+      const formattedRoutes: Route[] = results.routes.map((result: any, index: number) => {
+        const score = Math.floor((result.score || 0) * 100);
+        const totalMinutes = Math.round(result.total_time || 0);
 
         return {
-          id: result.rank.toString(),
+          id: (result.rank || index).toString(),
           departure,
           destination,
-          duration: arrivalTimeString,
-          distance: distanceString,
-          description: descriptionString,
-          path: result.route,
+          duration: `약 ${totalMinutes}분`,
+          description: `환승 ${result.transfers || 0}회`,
+          path: result.route_sequence || [],
+          lines: result.route_lines || [],
+          difficulty: score,
+          avgConvenience: result.avg_convenience,
+          avgCongestion: result.avg_congestion,
+          maxTransferDifficulty: result.max_transfer_difficulty,
         };
       });
       setRoutes(formattedRoutes);
@@ -96,15 +91,15 @@ export function ElderlyRouteSearchPage({ onRouteSelect, addToFavorites = false }
               <Users className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="mb-1">고령자 경로검색</h1>
+              <h1 className="mb-1">노약자 경로 검색</h1>
               <p className="text-sm text-muted-foreground">
-                편안하고 안전하게 이동할 수 있는 경로를 찾아드립니다
+                음성 안내를 통해 편리하게 경로를 탐색하세요.
               </p>
             </div>
           </div>
         </div>
 
-        {/* 검색 입력 */}
+        {/* 경로 검색 */}
         <Card className="p-4 mb-4 bg-card shadow-md">
           <div className="space-y-3">
             <div>
@@ -115,7 +110,7 @@ export function ElderlyRouteSearchPage({ onRouteSelect, addToFavorites = false }
                 value={departure}
                 onChange={(e) => setDeparture(e.target.value)}
                 className="mt-1"
-                onFocus={() => speak('출발지 입력란')}
+                onFocus={() => speak('출발지 입력')}
               />
             </div>
             <div>
@@ -126,14 +121,14 @@ export function ElderlyRouteSearchPage({ onRouteSelect, addToFavorites = false }
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
                 className="mt-1"
-                onFocus={() => speak('도착지 입력란')}
+                onFocus={() => speak('도착지 입력')}
               />
             </div>
             <Button
               className="w-full"
               onClick={handleSearch}
               disabled={!departure || !destination}
-              onMouseEnter={() => speak('경로 검색 버튼')}
+              onMouseEnter={() => speak('경로 검색하기')}
             >
               <ArrowRight className="w-4 h-4 mr-2" />
               경로 검색
@@ -150,25 +145,27 @@ export function ElderlyRouteSearchPage({ onRouteSelect, addToFavorites = false }
                 key={route.id}
                 className="p-4 cursor-pointer hover:shadow-lg transition-shadow bg-card"
                 onClick={() => handleSelectRoute(route)}
-                onMouseEnter={() => speak(`${route.duration}, ${route.distance}, ${route.description}`)}
+                onMouseEnter={() => speak(`약 ${route.duration}, 난이도 ${route.difficulty}`)}
               >
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-green-600">{route.duration}</span>
-                      <span className="text-muted-foreground">·</span>
-                      <span className="text-muted-foreground">{route.distance}</span>
+                <div className="flex justify-between items-start">
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-lg text-green-600">{route.duration}</span>
+                      <span className="text-sm text-muted-foreground">{route.description}</span>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {route.description}
-                    </p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                      <div className="text-muted-foreground">난이도: <span className="font-medium text-foreground">{route.difficulty}</span></div>
+                      <div className="text-muted-foreground">평균 편의성: <span className="font-medium text-foreground">{route.avgConvenience}</span></div>
+                      <div className="text-muted-foreground">평균 혼잡도: <span className="font-medium text-foreground">{route.avgCongestion}</span></div>
+                      <div className="text-muted-foreground">최대 환승 난이도: <span className="font-medium text-foreground">{route.maxTransferDifficulty}</span></div>
+                    </div>
                   </div>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     variant="outline"
                     onMouseEnter={(e) => {
                       e.stopPropagation();
-                      speak('경로 선택');
+                      speak('경로 선택하기');
                     }}
                   >
                     <Check className="w-4 h-4 mr-1" />
@@ -183,7 +180,7 @@ export function ElderlyRouteSearchPage({ onRouteSelect, addToFavorites = false }
         {searched && routes.length === 0 && (
           <Card className="p-8 text-center bg-card">
             <p className="text-muted-foreground">
-              검색 결과가 없습니다. 다른 출발지나 도착지를 입력해주세요.
+              검색 결과가 없습니다. 다른 출발지나 도착지를 입력해 주세요.
             </p>
           </Card>
         )}

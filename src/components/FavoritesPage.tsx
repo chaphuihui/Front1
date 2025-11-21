@@ -59,9 +59,9 @@ export function FavoritesPage() {
         {favorites.length === 0 ? (
           <Card className="p-12 text-center">
             <p className="text-muted-foreground mb-4">
-              저장된 즐겨찾기가 없습니다.
+              즐겨찾는 경로가 없습니다.
             </p>
-            <Button 
+            <Button
               onClick={() => navigate('/route-search?addToFavorites=true')}
               onMouseEnter={() => speak('경로 추가하기')}
             >
@@ -78,14 +78,13 @@ export function FavoritesPage() {
                     <TableHead>출발지</TableHead>
                     <TableHead>도착지</TableHead>
                     <TableHead className="hidden md:table-cell">소요시간</TableHead>
-                    <TableHead className="hidden md:table-cell">거리</TableHead>
-                    <TableHead className="hidden sm:table-cell">설명</TableHead>
-                    <TableHead className="text-right">작업</TableHead>
+                    <TableHead className="hidden sm:table-cell">경로</TableHead>
+                    <TableHead className="text-right">삭제</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {favorites.map((favorite) => (
-                    <TableRow 
+                    <TableRow
                       key={favorite.id}
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => handleSelectFavorite(favorite)}
@@ -94,7 +93,6 @@ export function FavoritesPage() {
                       <TableCell>{favorite.departure}</TableCell>
                       <TableCell>{favorite.destination}</TableCell>
                       <TableCell className="hidden md:table-cell">{favorite.duration}</TableCell>
-                      <TableCell className="hidden md:table-cell">{favorite.distance}</TableCell>
                       <TableCell className="hidden sm:table-cell max-w-xs truncate">
                         {favorite.description}
                       </TableCell>
