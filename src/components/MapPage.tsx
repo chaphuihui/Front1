@@ -272,8 +272,8 @@ export function MapPage({ selectedRoute }: MapPageProps) {
       </div>
 
       {/* 검색창 */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-10">
-        <div className="flex gap-2">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 z-10" style={{ width: '30vw' }}>
+        <div className="flex gap-2 w-full">
           <Input ref={searchInputRef} type="text" placeholder="장소, 주소 검색.. (역 이름만)" className="flex-1 bg-white shadow-lg border-2" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSearch()} />
           <Button size="icon" className="shadow-lg shrink-0" onClick={handleSearch} disabled={isSearching}>
             {isSearching ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" /> : <Search className="w-5 h-5" />}
