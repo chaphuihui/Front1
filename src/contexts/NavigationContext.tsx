@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 import { WebSocketService } from '../services/websocketService';
 import { GeolocationService } from '../services/geolocationService';
+import { useAuth } from './AuthContext';
 import {
   NavigationState,
   NavigationRoute,
@@ -16,7 +17,7 @@ import {
 
 interface NavigationContextType {
   state: NavigationState;
-  startNavigation: (origin: string, destination: string, disabilityType: DisabilityType) => void;
+  startNavigation: (origin: string, destination: string, disabilityType: DisabilityType) => Promise<void>;
   switchRoute: (rank: 1 | 2 | 3) => void;
   endNavigation: () => void;
   recalculateRoute: () => void;
@@ -26,9 +27,14 @@ interface NavigationContextType {
 const NavigationContext = createContext<NavigationContextType | undefined>(undefined);
 
 export function NavigationProvider({ children }: { children: ReactNode }) {
-  // userId를 로컬스토리지나 AuthContext에서 가져올 수 있습니다
-  // 현재는 임시로 타임스탬프 기반 ID 사용
-  const [wsService] = useState(() => new WebSocketService(`user_${Date.now()}`));
+  // AuthContext에서 실제 user_id 가져오기
+  const { user } = useAuth();
+
+  // 게스트 사용자를 위한 임시 ID (한 번만 생성)
+  const guestIdRef = useRef<string>(`guest_${Date.now()}`);
+
+  // WebSocketService 인스턴스는 한 번만 생성 (이벤트 리스너 유지)
+  const [wsService] = useState(() => new WebSocketService(guestIdRef.current));
   const [geoService] = useState(() => new GeolocationService());
 
   const [state, setState] = useState<NavigationState>({
@@ -44,30 +50,16 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     disabilityType: null,
   });
 
-  // WebSocket 연결 및 메시지 핸들러 등록
+  // WebSocket 메시지 핸들러 등록 (연결은 startNavigation에서 수행)
   useEffect(() => {
     let isMounted = true;
-
-    // WebSocket 연결
-    wsService
-      .connect()
-      .then(() => {
-        if (isMounted) {
-          setState((prev) => ({ ...prev, isConnected: true }));
-        }
-      })
-      .catch((error) => {
-        if (isMounted) {
-          setState((prev) => ({
-            ...prev,
-            error: `서버 연결 실패: ${error.message}`,
-          }));
-        }
-      });
 
     // 연결 성공 핸들러
     wsService.on('connected', (data) => {
       console.log('[Navigation] WebSocket 연결됨:', data.message);
+      if (isMounted) {
+        setState((prev) => ({ ...prev, isConnected: true }));
+      }
     });
 
     // 경로 계산 완료 핸들러
@@ -218,26 +210,39 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 
   // 내비게이션 시작
   const startNavigation = useCallback(
-    (origin: string, destination: string, disabilityType: DisabilityType) => {
-      if (!wsService.isConnected()) {
+    async (origin: string, destination: string, disabilityType: DisabilityType) => {
+      try {
+        // 1. 현재 사용할 userId 결정 (로그인 사용자 vs 게스트)
+        const currentUserId = user?.user_id || guestIdRef.current;
+        console.log('[Navigation] 사용자 ID:', currentUserId, user?.user_id ? '(로그인)' : '(게스트)');
+
+        // 2. WebSocket 연결 (이미 연결되어 있으면 무시됨)
+        if (!wsService.isConnected()) {
+          console.log('[Navigation] WebSocket 연결 시도...');
+          await wsService.connect(currentUserId);
+          console.log('[Navigation] WebSocket 연결 성공');
+        }
+
+        // 3. 상태 업데이트
         setState((prev) => ({
           ...prev,
-          error: '서버에 연결되지 않았습니다',
+          origin,
+          destination,
+          disabilityType,
+          error: null,
         }));
-        return;
+
+        // 4. 내비게이션 시작 메시지 전송
+        wsService.startNavigation(origin, destination, disabilityType);
+      } catch (error) {
+        console.error('[Navigation] 내비게이션 시작 실패:', error);
+        setState((prev) => ({
+          ...prev,
+          error: error instanceof Error ? error.message : '서버 연결에 실패했습니다',
+        }));
       }
-
-      setState((prev) => ({
-        ...prev,
-        origin,
-        destination,
-        disabilityType,
-        error: null,
-      }));
-
-      wsService.startNavigation(origin, destination, disabilityType);
     },
-    [wsService]
+    [wsService, user]
   );
 
   // 경로 전환

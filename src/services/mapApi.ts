@@ -31,10 +31,10 @@
  */
 
 import { Facility, Obstacle, FacilityType, ObstacleType, ObstacleSeverity, MapCoordinates } from '../types';
+import { get, post } from './apiClient';
 
-// TODO: 환경변수로 관리
-// 예시: const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.mobility-service.com/v1';
-const BASE_URL = 'https://api.mobility-service.com/v1';
+// 환경변수로 BASE_URL 관리
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://35.92.117.143';
 
 /**
  * 편의시설 목록 조회
@@ -56,8 +56,6 @@ export async function fetchFacilities(
   types?: FacilityType[]
 ): Promise<Facility[]> {
   try {
-    // TODO: 실제 API 호출로 교체
-    /*
     const queryParams = new URLSearchParams();
     if (bounds) {
       queryParams.append('minLat', bounds.minLatitude.toString());
@@ -69,78 +67,12 @@ export async function fetchFacilities(
       queryParams.append('types', types.join(','));
     }
 
-    const response = await fetch(`${BASE_URL}/api/facilities?${queryParams}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        // 'Authorization': `Bearer ${token}`, // 필요시 인증 토큰 추가
-      },
-    });
+    // apiClient 사용 (자동 JWT 토큰 추가)
+    const data = await get<{ facilities: Facility[] }>(
+      `${BASE_URL}/api/facilities?${queryParams}`
+    );
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch facilities');
-    }
-
-    const data = await response.json();
     return data.facilities;
-    */
-
-    // Mock 데이터 (개발용)
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve([
-          {
-            id: 'facility-1',
-            name: '서울역 엘리베이터',
-            type: FacilityType.ELEVATOR,
-            latitude: 37.5547,
-            longitude: 126.9707,
-            address: '서울특별시 용산구 한강대로 405',
-            description: '1호선, KTX 승강장 연결',
-            accessibility: {
-              wheelchairAccessible: true,
-              hasElevator: true,
-              hasRamp: true,
-              hasBrailleBlock: true,
-              hasAudioGuide: false,
-            },
-          },
-          {
-            id: 'facility-2',
-            name: '장애인 화장실',
-            type: FacilityType.RESTROOM,
-            latitude: 37.5557,
-            longitude: 126.9717,
-            address: '서울특별시 용산구',
-            description: '24시간 이용 가능',
-            accessibility: {
-              wheelchairAccessible: true,
-              hasElevator: false,
-              hasRamp: true,
-              hasBrailleBlock: false,
-              hasAudioGuide: false,
-            },
-          },
-          {
-            id: 'facility-3',
-            name: '장애인 주차장',
-            type: FacilityType.PARKING,
-            latitude: 37.5537,
-            longitude: 126.9697,
-            address: '서울특별시 용산구',
-            description: '10면 주차 가능',
-            openingHours: '24시간',
-            accessibility: {
-              wheelchairAccessible: true,
-              hasElevator: false,
-              hasRamp: true,
-              hasBrailleBlock: false,
-              hasAudioGuide: false,
-            },
-          },
-        ]);
-      }, 500); // 네트워크 지연 시뮬레이션
-    });
   } catch (error) {
     console.error('Error fetching facilities:', error);
     throw error;
@@ -167,8 +99,6 @@ export async function fetchObstacles(
   severities?: ObstacleSeverity[]
 ): Promise<Obstacle[]> {
   try {
-    // TODO: 실제 API 호출로 교체
-    /*
     const queryParams = new URLSearchParams();
     if (bounds) {
       queryParams.append('minLat', bounds.minLatitude.toString());
@@ -180,60 +110,12 @@ export async function fetchObstacles(
       queryParams.append('severities', severities.join(','));
     }
 
-    const response = await fetch(`${BASE_URL}/api/obstacles?${queryParams}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        // 'Authorization': `Bearer ${token}`, // 필요시 인증 토큰 추가
-      },
-    });
+    // apiClient 사용 (자동 JWT 토큰 추가)
+    const data = await get<{ obstacles: Obstacle[] }>(
+      `${BASE_URL}/api/obstacles?${queryParams}`
+    );
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch obstacles');
-    }
-
-    const data = await response.json();
     return data.obstacles;
-    */
-
-    // Mock 데이터 (개발용)
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve([
-          {
-            id: 'obstacle-1',
-            type: ObstacleType.CONSTRUCTION,
-            severity: ObstacleSeverity.HIGH,
-            latitude: 37.5552,
-            longitude: 126.9702,
-            description: '도로 공사 진행 중 - 우회 필요',
-            reportedAt: new Date('2024-01-15'),
-            isTemporary: true,
-            estimatedRemovalDate: new Date('2024-03-31'),
-          },
-          {
-            id: 'obstacle-2',
-            type: ObstacleType.STAIRS,
-            severity: ObstacleSeverity.CRITICAL,
-            latitude: 37.5562,
-            longitude: 126.9722,
-            description: '계단만 있음 - 휠체어 통행 불가',
-            reportedAt: new Date('2023-12-01'),
-            isTemporary: false,
-          },
-          {
-            id: 'obstacle-3',
-            type: ObstacleType.NARROW_PATH,
-            severity: ObstacleSeverity.MEDIUM,
-            latitude: 37.5542,
-            longitude: 126.9692,
-            description: '좁은 통로 - 휠체어 통행 주의',
-            reportedAt: new Date('2024-01-20'),
-            isTemporary: false,
-          },
-        ]);
-      }, 500); // 네트워크 지연 시뮬레이션
-    });
   } catch (error) {
     console.error('Error fetching obstacles:', error);
     throw error;
@@ -300,12 +182,17 @@ export async function reportFacility(
   try {
     // TODO: 실제 API 호출로 교체
     /*
+    const token = tokenManager.getAccessToken();
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${BASE_URL}/api/facilities`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // 'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify(facility),
     });
 
@@ -347,12 +234,17 @@ export async function reportObstacle(
   try {
     // TODO: 실제 API 호출로 교체
     /*
+    const token = tokenManager.getAccessToken();
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${BASE_URL}/api/obstacles`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // 'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify(obstacle),
     });
 
