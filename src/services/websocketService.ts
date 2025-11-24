@@ -8,6 +8,7 @@ import {
   ServerMessage,
   DisabilityType
 } from '../types/navigation';
+import { tokenManager } from './tokenManager';
 
 export class WebSocketService {
   private ws: WebSocket | null = null;
@@ -25,13 +26,37 @@ export class WebSocketService {
 
   /**
    * WebSocket 연결
+   * @param userId 연결할 사용자 ID (선택적, 제공되지 않으면 기존 userId 사용)
    */
-  connect(): Promise<void> {
+  connect(userId?: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      // 포트 번호 8001 추가
-      const wsUrl = `${import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8001'}/api/v1/ws/${this.userId}`;
+      // userId가 제공되면 업데이트
+      if (userId) {
+        // userId가 변경되었으면 기존 연결 종료
+        if (this.userId !== userId && this.isConnected()) {
+          console.log('[WebSocket] userId 변경 감지, 기존 연결 종료:', this.userId, '->', userId);
+          this.disconnect();
+        }
+        this.userId = userId;
+      }
 
-      console.log('[WebSocket] 연결 시도:', wsUrl);
+      // 이미 연결되어 있으면 바로 resolve
+      if (this.isConnected()) {
+        console.log('[WebSocket] 이미 연결됨');
+        resolve();
+        return;
+      }
+
+      // JWT 토큰 가져오기
+      const token = tokenManager.getAccessToken();
+
+      // 포트 번호 8001 추가, JWT 토큰을 query parameter로 전달
+      let wsUrl = `${import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8001'}/api/v1/ws/${this.userId}`;
+      if (token) {
+        wsUrl += `?token=${token}`;
+      }
+
+      console.log('[WebSocket] 연결 시도:', wsUrl.replace(/token=[^&]+/, 'token=***'));
 
       try {
         this.ws = new WebSocket(wsUrl);
