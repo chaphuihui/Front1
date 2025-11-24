@@ -4,6 +4,7 @@ import { useLoadScript } from '@react-google-maps/api';
 import { HighContrastProvider } from './contexts/HighContrastContext';
 import { VoiceGuideProvider } from './contexts/VoiceGuideContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { NavigationProvider } from './contexts/NavigationContext';
 import { MapPage } from './components/MapPage';
 import { UserTypeSelectionPage } from './components/UserTypeSelectionPage';
 import { PhysicalDisabilityRouteSearchPage } from './components/PhysicalDisabilityRouteSearchPage';
@@ -15,6 +16,7 @@ import { LoginPage } from './components/LoginPage';
 import { SignupPage } from './components/SignupPage';
 import { UserProfilePage } from './components/UserProfilePage';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { NavigationPage } from './components/NavigationPage';
 import { Route as RouteType, Favorite } from './types';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -134,6 +136,16 @@ function AppContent() {
         }
       />
 
+      {/* 실시간 내비게이션 페이지 */}
+      <Route
+        path="/navigation"
+        element={
+          <ProtectedRoute>
+            <NavigationPage />
+          </ProtectedRoute>
+        }
+      />
+
       {/* 404 - 홈으로 리다이렉트 */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -178,9 +190,11 @@ export default function App() {
     <AuthProvider>
       <HighContrastProvider>
         <VoiceGuideProvider>
-          <Router>
-            <AppContent />
-          </Router>
+          <NavigationProvider>
+            <Router>
+              <AppContent />
+            </Router>
+          </NavigationProvider>
         </VoiceGuideProvider>
       </HighContrastProvider>
     </AuthProvider>
