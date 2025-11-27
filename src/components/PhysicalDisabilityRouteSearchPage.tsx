@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, ArrowLeft, Check, Accessibility } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Check, Accessibility, Navigation } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card } from './ui/card';
@@ -7,7 +7,11 @@ import { useNavigate } from 'react-router-dom';
 import { Route } from '../types';
 import { Label } from './ui/label';
 import { useVoiceGuide } from '../contexts/VoiceGuideContext';
+import { useNavigation } from '../contexts/NavigationContext';
 import { searchRoutes } from '../services/routeApi';
+import { StationAutocomplete } from './StationAutocomplete';
+import { formatRouteDisplay } from '../utils/routeFormatter';
+import { NavigationRoute } from '../types/navigation';
 
 interface PhysicalDisabilityRouteSearchPageProps {
   onRouteSelect?: (route: Route) => void;
@@ -22,6 +26,7 @@ interface PhysicalDisabilityRouteSearchPageProps {
 export function PhysicalDisabilityRouteSearchPage({ onRouteSelect, addToFavorites = false }: PhysicalDisabilityRouteSearchPageProps) {
   const navigate = useNavigate();
   const { speak } = useVoiceGuide();
+  const { setRouteData } = useNavigation();
   const [departure, setDeparture] = useState('');
   const [destination, setDestination] = useState('');
   const [routes, setRoutes] = useState<Route[]>([]);
@@ -35,6 +40,8 @@ export function PhysicalDisabilityRouteSearchPage({ onRouteSelect, addToFavorite
     try {
       const results = await searchRoutes(departure, destination, "PHY");
       console.log('API Response:', results);
+
+      // UI 표시용 Route 배열
       const formattedRoutes: Route[] = results.routes.map((result: any, index: number) => {
         const score = Math.floor((result.score || 0) * 100);
         const totalMinutes = Math.round(result.total_time || 0);
@@ -51,9 +58,28 @@ export function PhysicalDisabilityRouteSearchPage({ onRouteSelect, addToFavorite
           avgConvenience: result.avg_convenience,
           avgCongestion: result.avg_congestion,
           maxTransferDifficulty: result.max_transfer_difficulty,
+          transferStations: result.transfer_stations || [],
         };
       });
       setRoutes(formattedRoutes);
+
+      // NavigationContext용 NavigationRoute 배열로 변환
+      const navigationRoutes: NavigationRoute[] = results.routes.map((result: any) => ({
+        rank: result.rank || 1,
+        route_sequence: result.route_sequence || [],
+        route_lines: result.route_lines || [],
+        total_time: result.total_time || 0,
+        transfers: result.transfers || 0,
+        transfer_stations: result.transfer_stations || [],
+        transfer_info: result.transfer_info || [],
+        score: result.score || 0,
+        avg_convenience: result.avg_convenience || 0,
+        avg_congestion: result.avg_congestion || 0,
+        max_transfer_difficulty: result.max_transfer_difficulty || 0,
+      }));
+
+      // NavigationContext에 데이터 저장
+      setRouteData(departure, destination, 'PHY', navigationRoutes);
     } catch (error) {
       console.error("Failed to fetch routes:", error);
       setRoutes([]);
@@ -70,6 +96,12 @@ export function PhysicalDisabilityRouteSearchPage({ onRouteSelect, addToFavorite
     if (!addToFavorites) {
       navigate('/', { state: { selectedRoute: route } });
     }
+  };
+
+  const handleStartNavigation = (route: Route, e: React.MouseEvent) => {
+    e.stopPropagation();
+    // NavigationPage로 이동 (경로 데이터는 이미 Context에 저장됨)
+    navigate('/navigation');
   };
 
   return (
@@ -102,28 +134,22 @@ export function PhysicalDisabilityRouteSearchPage({ onRouteSelect, addToFavorite
         {/* 경로 검색 */}
         <Card className="p-4 mb-4 bg-card shadow-md">
           <div className="space-y-3">
-            <div>
-              <Label htmlFor="departure">출발지</Label>
-              <Input
-                id="departure"
-                placeholder="출발지를 입력하세요"
-                value={departure}
-                onChange={(e) => setDeparture(e.target.value)}
-                className="mt-1"
-                onFocus={() => speak('출발지 입력')}
-              />
-            </div>
-            <div>
-              <Label htmlFor="destination">도착지</Label>
-              <Input
-                id="destination"
-                placeholder="도착지를 입력하세요"
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                className="mt-1"
-                onFocus={() => speak('도착지 입력')}
-              />
-            </div>
+            <StationAutocomplete
+              id="departure"
+              label="출발지"
+              value={departure}
+              onChange={setDeparture}
+              placeholder="출발역을 입력하세요"
+              required
+            />
+            <StationAutocomplete
+              id="destination"
+              label="도착지"
+              value={destination}
+              onChange={setDestination}
+              placeholder="도착역을 입력하세요"
+              required
+            />
             <Button
               className="w-full"
               onClick={handleSearch}
@@ -153,6 +179,12 @@ export function PhysicalDisabilityRouteSearchPage({ onRouteSelect, addToFavorite
                       <span className="font-bold text-lg text-purple-600">{route.duration}</span>
                       <span className="text-sm text-muted-foreground">{route.description}</span>
                     </div>
+                    {/* 경로 표시 */}
+                    {route.path && route.path.length > 0 && route.transferStations && (
+                      <div className="text-sm text-foreground font-medium">
+                        {formatRouteDisplay(route.path, route.transferStations)}
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                       <div className="text-muted-foreground">난이도: <span className="font-medium text-foreground">{route.difficulty}</span></div>
                       <div className="text-muted-foreground">평균 편의성: <span className="font-medium text-foreground">{route.avgConvenience}</span></div>
@@ -160,17 +192,32 @@ export function PhysicalDisabilityRouteSearchPage({ onRouteSelect, addToFavorite
                       <div className="text-muted-foreground">최대 환승 난이도: <span className="font-medium text-foreground">{route.maxTransferDifficulty}</span></div>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onMouseEnter={(e) => {
-                      e.stopPropagation();
-                      speak('경로 선택하기');
-                    }}
-                  >
-                    <Check className="w-4 h-4 mr-1" />
-                    선택
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => handleStartNavigation(route, e)}
+                      onMouseEnter={(e) => {
+                        e.stopPropagation();
+                        speak('실시간 내비게이션 시작');
+                      }}
+                      className="bg-blue-500 text-white hover:bg-blue-600"
+                    >
+                      <Navigation className="w-4 h-4 mr-1" />
+                      내비게이션
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onMouseEnter={(e) => {
+                        e.stopPropagation();
+                        speak('경로 선택하기');
+                      }}
+                    >
+                      <Check className="w-4 h-4 mr-1" />
+                      선택
+                    </Button>
+                  </div>
                 </div>
               </Card>
             ))}
