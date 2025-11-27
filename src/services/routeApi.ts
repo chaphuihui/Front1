@@ -1,4 +1,5 @@
 import { Route } from "../types";
+import { post } from "./apiClient";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -31,33 +32,16 @@ export async function searchRoutes(
   disability_type: string
 ): Promise<RouteSuccessResponse> {
   try {
-    const response = await fetch(`${BASE_URL}/api/v1/navigation/calculate`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    // apiClient의 post 헬퍼 사용 (자동으로 JWT 토큰 추가 및 401 에러 처리)
+    const data = await post<RouteSuccessResponse>(
+      `${BASE_URL}/api/v1/navigation/calculate`,
+      {
         origin,
         destination,
         disability_type,
-      }),
-    });
+      }
+    );
 
-    if (!response.ok) {
-      const errorData: RouteValidationError | { detail: string } = await response
-        .json()
-        .catch(() => ({ detail: "Failed to parse error response" }));
-      console.error("Server response was not ok.", {
-        status: response.status,
-        statusText: response.statusText,
-        errorData,
-      });
-
-      // It's better to throw an object that includes the structured error data
-      throw { status: response.status, errorData };
-    }
-
-    const data: RouteSuccessResponse = await response.json();
     return data;
   } catch (error) {
     console.error("Error searching routes:", error);
